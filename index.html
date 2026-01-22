@@ -54,11 +54,12 @@
         </div>
     </div>
 
-    <script>
+<script>
         const chatBox = document.getElementById('chatBox');
         const userInput = document.getElementById('userInput');
         const status = document.getElementById('status');
         let selectedImage = null;
+        let conversationHistory = [];
 
         // Função para adicionar mensagens ao chat
         function addMessage(content, isUser = false) {
@@ -69,7 +70,7 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Simulação de processamento de Imagem (Usando MobileNet/TensorFlow Open Source)
+        // Processamento de Imagem
         function handleImage(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
@@ -88,7 +89,73 @@
             document.getElementById('fileInput').value = '';
         }
 
-        // Lógica Principal de Resposta
+        // API 1: Hugging Face Inference API (Sem token para modelos públicos)
+        async function callHuggingFace(text) {
+            try {
+                const response = await fetch("https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ inputs: text })
+                });
+                const data = await response.json();
+                return data[0]?.generated_text || data.generated_text || null;
+            } catch (e) {
+                console.error("HuggingFace error:", e);
+                return null;
+            }
+        }
+
+        // API 2: DuckDuckGo Instant Answer (Para perguntas factuais)
+        async function searchDuckDuckGo(query) {
+            try {
+                const response = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
+                const data = await response.json();
+                return data.AbstractText || data.Answer || null;
+            } catch (e) {
+                console.error("DuckDuckGo error:", e);
+                return null;
+            }
+        }
+
+        // API 3: Wikipedia API (Para conhecimento geral)
+        async function searchWikipedia(query) {
+            try {
+                const response = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`);
+                const data = await response.json();
+                return data.extract || null;
+            } catch (e) {
+                console.error("Wikipedia error:", e);
+                return null;
+            }
+        }
+
+        // API 4: Análise de Sentimento usando modelo de classificação
+        async function analyzeSentiment(text) {
+            try {
+                const response = await fetch("https://api-inference.huggingface.co/models/cardiffnlp/twitter-roberta-base-sentiment", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ inputs: text })
+                });
+                const data = await response.json();
+                return data[0] || null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // API 5: Tradução automática
+        async function translateText(text, targetLang = "pt") {
+            try {
+                const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`);
+                const data = await response.json();
+                return data[0]?.[0]?.[0] || null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Lógica Principal de Resposta Inteligente
         async function sendMessage() {
             const text = userInput.value.trim();
             if (!text && !selectedImage) return;
@@ -96,48 +163,105 @@
             addMessage(text || "Analisando esta imagem...", true);
             userInput.value = '';
             status.innerText = "Antínia está pensando...";
+            status.className = "text-xs bg-blue-900/30 text-blue-400 px-3 py-1 rounded-full border border-blue-600";
 
-            setTimeout(() => {
-                if (text.toLowerCase().includes("video") || text.toLowerCase().includes("gerar")) {
-                    generateVideoSim(text);
-                } else if (selectedImage) {
-                    analyzeImageSim();
+            try {
+                if (selectedImage) {
+                    await analyzeImageReal();
+                } else if (text.toLowerCase().includes("traduz") || text.toLowerCase().includes("translate")) {
+                    await handleTranslation(text);
+                } else if (text.toLowerCase().includes("sentimento") || text.toLowerCase().includes("emoção")) {
+                    await handleSentiment(text);
                 } else {
-                    respondText(text);
+                    await respondIntelligent(text);
                 }
-            }, 1000);
-        }
+            } catch (e) {
+                addMessage("❌ Desculpe, ocorreu um erro. Tente novamente.");
+                console.error(e);
+            }
 
-        // Mock de Resposta de Texto (Simulando conhecimento até 2025)
-        function respondText(query) {
-            const responses = {
-                "oi": "Olá! Como posso ajudar você hoje?",
-                "quem é você": "Eu sou a Antínia IA, um modelo treinado com dados até o início de 2025 focado em privacidade e execução local.",
-                "ajuda": "Eu posso descrever imagens, conversar e sugerir prompts para vídeos."
-            };
-            
-            let reply = responses[query.toLowerCase()] || "Interessante! Como um modelo atualizado até 2025, entendo que você está perguntando sobre " + query + ". Posso aprofundar se desejar.";
-            addMessage(reply);
             status.innerText = "Pronta";
+            status.className = "text-xs bg-green-900/30 text-green-400 px-3 py-1 rounded-full border border-green-600";
         }
 
-        // Simulação de Análise de Imagem (Frontend Puro)
-        function analyzeImageSim() {
-            addMessage("🔍 **Análise da Antínia:** Identifiquei elementos visuais nesta imagem que sugerem um contexto moderno. (Para análise real via navegador, utilize bibliotecas como TensorFlow.js que estão pré-carregadas).");
+        // Resposta Inteligente com múltiplas APIs
+        async function respondIntelligent(query) {
+            conversationHistory.push(query);
+
+            // Tentar DuckDuckGo primeiro para respostas rápidas
+            const ddgAnswer = await searchDuckDuckGo(query);
+            if (ddgAnswer && ddgAnswer.length > 20) {
+                addMessage(`📚 **Informação:** ${ddgAnswer}`);
+                return;
+            }
+
+            // Tentar Wikipedia para conhecimento geral
+            const wikiAnswer = await searchWikipedia(query);
+            if (wikiAnswer && wikiAnswer.length > 30) {
+                addMessage(`📖 **Da Wikipedia:** ${wikiAnswer}`);
+                return;
+            }
+
+            // Usar modelo de linguagem como fallback
+            const aiAnswer = await callHuggingFace(query);
+            if (aiAnswer) {
+                addMessage(`🤖 ${aiAnswer}`);
+                return;
+            }
+
+            // Resposta padrão se tudo falhar
+            addMessage(`Entendi sua pergunta sobre "${query}". Posso ajudar de outras formas: análise de sentimento, tradução, ou busca de informações específicas!`);
+        }
+
+        // Análise de Imagem Real usando Vision API
+        async function analyzeImageReal() {
+            addMessage("🔍 Analisando imagem com IA...");
+            
+            try {
+                // Usando API de visão computacional do Hugging Face
+                const blob = await fetch(selectedImage).then(r => r.blob());
+                const response = await fetch("https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base", {
+                    method: "POST",
+                    body: blob
+                });
+                const data = await response.json();
+                
+                if (data[0]?.generated_text) {
+                    addMessage(`🖼️ **Análise da Imagem:** ${data[0].generated_text}`);
+                } else {
+                    addMessage("🖼️ Identifiquei elementos visuais interessantes na imagem, mas não consegui gerar uma descrição detalhada.");
+                }
+            } catch (e) {
+                addMessage("⚠️ Não foi possível analisar a imagem no momento. O modelo pode estar carregando.");
+            }
+            
             clearImage();
-            status.innerText = "Pronta";
         }
 
-        // Simulação de Geração de Vídeo (Usando placeholders de modelos abertos como Hugging Face)
-        function generateVideoSim(prompt) {
-            addMessage("🎬 **Gerando vídeo...** Isso pode levar alguns segundos usando recursos públicos.");
+        // Análise de Sentimento
+        async function handleSentiment(text) {
+            const textToAnalyze = text.replace(/sentimento|emoção|analise/gi, '').trim();
+            const sentiment = await analyzeSentiment(textToAnalyze);
             
-            // Simulação de um retorno de modelo de vídeo (ex: ModelScope/ZeroScope)
-            setTimeout(() => {
-                const videoUrl = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJpbmZqamZpZzRreXp4eHh4eHh4eHh4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/3o7TKMGpxxcaKqzZ8A/giphy.gif"; // Placeholder de exemplo
-                addMessage(`Aqui está uma representação do seu vídeo sobre "${prompt}":<br><img src="${videoUrl}" class="mt-2 rounded-lg w-full">`);
-                status.innerText = "Pronta";
-            }, 3000);
+            if (sentiment) {
+                const topSentiment = sentiment.reduce((a, b) => a.score > b.score ? a : b);
+                const emoji = topSentiment.label === 'POSITIVE' ? '😊' : topSentiment.label === 'NEGATIVE' ? '😔' : '😐';
+                addMessage(`${emoji} **Análise de Sentimento:** ${topSentiment.label} (${(topSentiment.score * 100).toFixed(1)}% de confiança)`);
+            } else {
+                addMessage("Não foi possível analisar o sentimento no momento.");
+            }
+        }
+
+        // Tradução
+        async function handleTranslation(text) {
+            const textToTranslate = text.replace(/traduz|translate/gi, '').trim();
+            const translated = await translateText(textToTranslate);
+            
+            if (translated) {
+                addMessage(`🌐 **Tradução:** ${translated}`);
+            } else {
+                addMessage("Não foi possível traduzir no momento.");
+            }
         }
 
         // Enviar com Enter
