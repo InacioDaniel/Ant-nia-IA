@@ -212,40 +212,31 @@
             }
         }
 
-        // Chat com IA (Pollinations)
+        // Chat com IA (Pollinations) - Usando GET igual ao Zenia
         async function chatWithAI(message, searchResults = null) {
             try {
-                let systemPrompt = "Você é Antínia, uma assistente IA inteligente e prestativa. Responda sempre em português de forma clara, detalhada e útil. Você tem conhecimento até 2025.";
-                
-                let fullMessage = message;
+                let fullPrompt = "Você é Antínia, assistente IA em português. ";
                 
                 if (searchResults && searchResults.length > 0) {
-                    systemPrompt += "\n\nVocê tem acesso a informações atualizadas da web. Use essas informações para complementar sua resposta:";
-                    fullMessage = `Pergunta do usuário: ${message}\n\nInformações da web:\n`;
+                    fullPrompt += "Informações da web: ";
                     searchResults.forEach((result, i) => {
-                        fullMessage += `\n${i + 1}. ${result.title}\nFonte: ${result.source}\nInformação: ${result.snippet}\n`;
+                        fullPrompt += `${i + 1}. ${result.title} (${result.source}): ${result.snippet.substring(0, 200)}. `;
                     });
-                    fullMessage += `\n\nCom base nas informações acima, responda à pergunta de forma completa e cite as fontes quando relevante.`;
+                    fullPrompt += "\n\n";
                 }
                 
-                const messages = [
-                    {role: "system", content: systemPrompt},
-                    ...conversationHistory.slice(-6),
-                    {role: "user", content: fullMessage}
-                ];
-
-                const response = await fetch('https://text.pollinations.ai/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messages: messages,
-                        model: "openai",
-                        seed: Date.now()
-                    })
-                });
-
-                const text = await response.text();
-                return text || "Desculpe, não consegui processar isso.";
+                fullPrompt += message;
+                
+                // Usar método GET igual ao Zenia - funciona sem erros
+                const xhr = new XMLHttpRequest();
+                xhr.open("GET", `https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}?model=openai`, false);
+                xhr.send();
+                
+                if (xhr.status === 200) {
+                    return xhr.responseText || "Desculpe, não consegui processar isso.";
+                } else {
+                    throw new Error(`Status ${xhr.status}`);
+                }
             } catch (e) {
                 console.error("Chat error:", e);
                 return "Desculpe, estou com dificuldades técnicas no momento.";
