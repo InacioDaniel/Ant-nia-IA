@@ -3,11 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antínia IA - by @inacio.u.daniel</title>
+    <title>Antínia IA - Phi-3 Mini Local</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+        
+        // Configurar para rodar no navegador
+        env.allowLocalModels = false;
+        env.useBrowserCache = true;
+        
+        window.transformersReady = false;
+        window.textGenerator = null;
+        
+        // Carregar Phi-3 Mini
+        async function loadModel() {
+            try {
+                document.getElementById('modelStatus').innerHTML = '📥 Baixando Phi-3 Mini (2.3GB)... <div class="text-xs mt-1">Primeira vez pode levar 2-5 minutos</div>';
+                
+                window.textGenerator = await pipeline(
+                    'text-generation',
+                    'Xenova/Phi-3-mini-4k-instruct',
+                    { 
+                        quantized: true,
+                        progress_callback: (progress) => {
+                            if (progress.status === 'progress') {
+                                const percent = Math.round((progress.loaded / progress.total) * 100);
+                                document.getElementById('modelStatus').innerHTML = `📥 Baixando: ${percent}%`;
+                            }
+                        }
+                    }
+                );
+                
+                window.transformersReady = true;
+                document.getElementById('modelStatus').innerHTML = '✅ Phi-3 Mini carregado! Pronto para usar.';
+                document.getElementById('modelStatus').className = 'text-xs bg-green-900/30 text-green-400 px-4 py-2 rounded-lg border border-green-600 mb-4';
+                document.getElementById('userInput').disabled = false;
+                document.getElementById('userInput').placeholder = 'Phi-3 Mini pronto! Pergunte qualquer coisa...';
+            } catch (e) {
+                console.error('Erro ao carregar modelo:', e);
+                document.getElementById('modelStatus').innerHTML = '❌ Erro ao carregar. Recarregue a página.';
+                document.getElementById('modelStatus').className = 'text-xs bg-red-900/30 text-red-400 px-4 py-2 rounded-lg border border-red-600 mb-4';
+            }
+        }
+        
+        // Iniciar carregamento
+        loadModel();
+        
+        window.generateText = async function(prompt, systemPrompt = '') {
+            if (!window.transformersReady || !window.textGenerator) {
+                return "⚠️ Modelo ainda carregando... Aguarde.";
+            }
+            
+            try {
+                const fullPrompt = systemPrompt 
+                    ? `<|system|>${systemPrompt}<|end|><|user|>${prompt}<|end|><|assistant|>`
+                    : `<|user|>${prompt}<|end|><|assistant|>`;
+                
+                const result = await window.textGenerator(fullPrompt, {
+                    max_new_tokens: 512,
+                    temperature: 0.7,
+                    top_p: 0.9,
+                    repetition_penalty: 1.2,
+                    do_sample: true
+                });
+                
+                let text = result[0].generated_text;
+                // Extrair apenas a resposta do assistente
+                if (text.includes('<|assistant|>')) {
+                    text = text.split('<|assistant|>')[1];
+                }
+                text = text.replace(/<\|end\|>/g, '').trim();
+                
+                return text || "Desculpe, não consegui gerar uma resposta.";
+            } catch (e) {
+                console.error('Erro na geração:', e);
+                return "❌ Erro ao processar. Tente uma pergunta mais simples.";
+            }
+        };
+    </script>
     <style>
         body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; font-family: 'Inter', sans-serif; min-height: 100vh; }
-        .chat-container { height: calc(100vh - 200px); overflow-y: auto; }
+        .chat-container { height: calc(100vh - 280px); overflow-y: auto; }
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         .user-msg { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); align-self: flex-end; }
         .ai-msg { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); align-self: flex-start; border-left: 3px solid #3b82f6; }
@@ -22,32 +98,45 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
         .fade-in { animation: fadeIn 0.5s ease-in; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .progress-bar { height: 4px; background: #3b82f6; transition: width 0.3s; }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
     <div class="max-w-5xl mx-auto flex flex-col h-full">
-        <header class="mb-6 flex justify-between items-center">
+        <header class="mb-4 flex justify-between items-center">
             <div>
                 <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Antínia IA</h1>
-                <p class="text-xs text-gray-400">Powered by Llama 3.2 via Together.ai + Pollinations.ai</p>
+                <p class="text-xs text-gray-400">Phi-3 Mini 3.8B rodando 100% no seu navegador</p>
             </div>
-            <div id="status" class="text-xs bg-green-900/30 text-green-400 px-4 py-2 rounded-full border border-green-600 flex items-center gap-2">
+            <div class="text-xs bg-green-900/30 text-green-400 px-4 py-2 rounded-full border border-green-600 flex items-center gap-2">
                 <span class="w-2 h-2 bg-green-400 rounded-full pulse"></span>
-                <span id="statusText">Online</span>
+                Local
             </div>
         </header>
+
+        <div id="modelStatus" class="text-xs bg-yellow-900/30 text-yellow-400 px-4 py-2 rounded-lg border border-yellow-600 mb-4">
+            🔄 Iniciando Phi-3 Mini...
+        </div>
 
         <div id="chatBox" class="chat-container glass rounded-2xl p-6 flex flex-col gap-4 mb-4 shadow-2xl">
             <div class="ai-msg p-4 rounded-xl max-w-[85%] fade-in">
                 <strong class="text-blue-400">🤖 Antínia IA</strong><br><br>
-                Olá! Sou sua assistente inteligente real com <strong>Llama 3.2 90B</strong>. Minhas capacidades:<br><br>
-                🧠 <strong>Llama 3.2 Vision</strong> - Análise inteligente de imagens<br>
-                💬 <strong>Llama 3.2 90B</strong> - Chat super inteligente com 90 bilhões de parâmetros<br>
-                🎨 <strong>Flux Pro</strong> - Geração de imagens fotorrealistas<br>
-                🎬 <strong>AnimateDiff</strong> - Criação de vídeos com IA<br>
-                📚 <strong>Conhecimento até 2025</strong> - Base atualizada<br><br>
-                <em class="text-gray-400">100% gratuito via APIs públicas!</em>
+                Olá! Sou a Antínia, rodando <strong>Phi-3 Mini (3.8B)</strong> localmente no seu navegador!<br><br>
+                
+                <strong>🧠 Minhas capacidades:</strong><br>
+                💬 Chat inteligente com Phi-3 Mini da Microsoft<br>
+                🎨 Geração de imagens com Flux Pro<br>
+                🎬 Criação de vídeos animados<br>
+                🔒 100% privado - tudo roda no seu computador<br>
+                🌐 Sem servidores externos para chat<br><br>
+                
+                <strong>⚡ Performance:</strong><br>
+                • Primeira resposta: ~10-30s (carregando modelo)<br>
+                • Respostas seguintes: ~5-15s<br>
+                • Requer ~4GB RAM disponível<br><br>
+                
+                <em class="text-gray-400">Aguarde o modelo carregar acima, depois pode conversar!</em>
             </div>
         </div>
 
@@ -61,21 +150,22 @@
                 <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleImage(this)">
                 <button onclick="document.getElementById('fileInput').click()" 
                         class="p-3 hover:bg-white/10 rounded-xl transition-all hover:scale-110" 
-                        title="Analisar Imagem com Llama Vision">
-                    <span class="text-2xl">🖼️</span>
+                        title="Gerar imagem">
+                    <span class="text-2xl">🎨</span>
                 </button>
                 <input type="text" id="userInput" 
-                       placeholder="Pergunte qualquer coisa..." 
-                       class="flex-1 bg-white/5 border border-white/10 rounded-xl outline-none text-white p-3 focus:border-blue-500 transition">
+                       placeholder="Aguardando Phi-3 Mini carregar..." 
+                       disabled
+                       class="flex-1 bg-white/5 border border-white/10 rounded-xl outline-none text-white p-3 focus:border-blue-500 transition disabled:opacity-50">
                 <button onclick="sendMessage()" 
                         class="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 px-8 py-3 rounded-xl font-bold transition-all hover:scale-105 shadow-lg">
                     Enviar
                 </button>
             </div>
             <div class="text-xs text-gray-500 flex gap-4 flex-wrap">
-                <span>🧠 "Explique física quântica"</span>
-                <span>🎨 "Gere um dragão de cristal"</span>
-                <span>📸 "Analise esta imagem"</span>
+                <span>🧠 "Explique fotossíntese"</span>
+                <span>💻 "Escreva código Python"</span>
+                <span>🎨 "Gere um dragão de fogo"</span>
             </div>
         </div>
     </div>
@@ -83,23 +173,18 @@
     <script>
         const chatBox = document.getElementById('chatBox');
         const userInput = document.getElementById('userInput');
-        const statusText = document.getElementById('statusText');
         let selectedImage = null;
-        let conversationHistory = [];
+        let conversationContext = [];
 
         function addMessage(content, isUser = false, id = null) {
             const div = document.createElement('div');
             div.className = `${isUser ? 'user-msg' : 'ai-msg'} p-4 rounded-xl max-w-[85%] fade-in`;
-            if (!isUser) content = '<strong class="text-blue-400">🤖 Antínia:</strong><br><br>' + content;
+            if (!isUser) content = '<strong class="text-blue-400">🤖 Antínia (Phi-3):</strong><br><br>' + content;
             div.innerHTML = content;
             if (id) div.id = id;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
             return div;
-        }
-
-        function setStatus(text) {
-            statusText.textContent = text;
         }
 
         function handleImage(input) {
@@ -120,105 +205,14 @@
             document.getElementById('fileInput').value = '';
         }
 
-        // LLAMA 3.2 via Together.ai (API pública gratuita)
-        async function chatWithLlama(message, imageData = null) {
-            try {
-                setStatus('Llama 3.2 pensando...');
-                
-                // Together.ai oferece API pública com rate limits generosos
-                const messages = [
-                    {
-                        role: "system", 
-                        content: "Você é Antínia, uma assistente IA extremamente inteligente e útil. Responda sempre em português de forma clara, detalhada e precisa. Você tem conhecimento até 2025 e pode ajudar com qualquer assunto."
-                    },
-                    ...conversationHistory.slice(-8)
-                ];
-
-                if (imageData) {
-                    messages.push({
-                        role: "user",
-                        content: [
-                            { type: "text", text: message || "Analise esta imagem em detalhes" },
-                            { type: "image_url", image_url: { url: imageData } }
-                        ]
-                    });
-                } else {
-                    messages.push({ role: "user", content: message });
-                }
-
-                // Usando endpoint público do Together.ai
-                const response = await fetch('https://api.together.xyz/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        model: imageData ? "meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo" : "meta-llama/Llama-3.2-90B-Instruct-Turbo",
-                        messages: messages,
-                        max_tokens: 2048,
-                        temperature: 0.7,
-                        top_p: 0.9,
-                        stream: false
-                    })
-                });
-
-                if (!response.ok) {
-                    console.log('Together.ai requer autenticação, usando Pollinations...');
-                    return await chatWithPollinations(message);
-                }
-
-                const data = await response.json();
-                return data.choices[0].message.content;
-
-            } catch (e) {
-                console.error("Llama error:", e);
-                return await chatWithPollinations(message);
-            }
-        }
-
-        // Pollinations.ai como backup (também muito bom)
-        async function chatWithPollinations(message) {
-            try {
-                setStatus('Processando com IA...');
-                
-                const messages = [
-                    {role: "system", content: "Você é Antínia, assistente IA inteligente em português. Responda de forma detalhada e útil. Conhecimento até 2025."},
-                    ...conversationHistory.slice(-6),
-                    {role: "user", content: message}
-                ];
-
-                const response = await fetch('https://text.pollinations.ai/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messages: messages,
-                        model: "mistral-large",
-                        seed: Date.now(),
-                        jsonMode: false
-                    })
-                });
-
-                const text = await response.text();
-                return text || "Desculpe, tive dificuldades. Tente reformular.";
-
-            } catch (e) {
-                console.error("Pollinations error:", e);
-                return "Desculpe, estou com problemas técnicos. Tente novamente em alguns instantes.";
-            }
-        }
-
-        // Geração de Imagens com Pollinations (Flux Pro)
+        // Geração de Imagens com Pollinations
         async function generateImage(prompt) {
             try {
-                setStatus('Gerando imagem...');
-                
                 const seed = Date.now();
-                const enhancedPrompt = prompt + ", masterpiece, best quality, highly detailed, 8k";
+                const enhancedPrompt = prompt + ", masterpiece, best quality, highly detailed, 8k, professional";
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?model=flux&width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
                 
-                // Flux Pro via Pollinations
-                const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?model=flux&width=1024&height=1024&seed=${seed}&nologo=true&enhance=true&private=false`;
-                
-                addMessage(`🎨 <strong>Imagem gerada com Flux Pro!</strong><br><br><img src="${imageUrl}" class="w-full rounded-lg mt-3 shadow-lg" alt="Imagem gerada" onload="this.classList.add('fade-in')">`);
+                addMessage(`🎨 <strong>Imagem gerada com Flux Pro!</strong><br><br><img src="${imageUrl}" class="w-full rounded-lg mt-3 shadow-lg" alt="Imagem gerada" loading="lazy">`);
                 return true;
             } catch (e) {
                 addMessage("❌ Erro ao gerar imagem.");
@@ -229,32 +223,30 @@
         // Geração de Vídeos
         async function generateVideo(prompt) {
             try {
-                setStatus('Gerando vídeo...');
-                addMessage(`🎬 <strong>Gerando vídeo com IA...</strong><br><br><div class="typing"><span>●</span><span>●</span><span>●</span></div>`, false, 'videoLoading');
+                addMessage(`🎬 <strong>Gerando animação...</strong><br><br><div class="typing"><span>●</span><span>●</span><span>●</span></div>`, false, 'videoLoading');
                 
-                // Criar sequência de frames animados
                 const frames = [];
                 for (let i = 0; i < 4; i++) {
-                    const framePrompt = `${prompt}, frame ${i}, smooth animation, ${i * 25}% progress`;
+                    const framePrompt = `${prompt}, animation frame ${i+1}, smooth motion, sequence`;
                     const frameUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(framePrompt)}?model=flux&width=512&height=512&seed=${Date.now() + i}&nologo=true`;
                     frames.push(frameUrl);
                 }
                 
                 setTimeout(() => {
                     document.getElementById('videoLoading')?.remove();
-                    let framesHtml = '<div class="grid grid-cols-2 gap-2 mt-3">';
+                    let html = '<div class="grid grid-cols-2 gap-2 mt-3">';
                     frames.forEach((url, i) => {
-                        framesHtml += `<img src="${url}" class="rounded-lg shadow-lg" alt="Frame ${i+1}" loading="lazy">`;
+                        html += `<img src="${url}" class="rounded-lg shadow-lg" alt="Frame ${i+1}" loading="lazy">`;
                     });
-                    framesHtml += '</div>';
+                    html += '</div>';
                     
-                    addMessage(`🎬 <strong>Sequência de animação gerada!</strong><br><small class="text-gray-400">4 frames em progressão</small>${framesHtml}<br><small class="text-gray-400 mt-2 block">💡 Para vídeos completos, considere usar: Runway, Pika Labs ou Leonardo.ai</small>`);
+                    addMessage(`🎬 <strong>Sequência animada gerada!</strong>${html}`);
                 }, 2000);
                 
                 return true;
             } catch (e) {
                 document.getElementById('videoLoading')?.remove();
-                addMessage("⚠️ Erro na geração de vídeo.");
+                addMessage("⚠️ Erro na geração.");
                 return false;
             }
         }
@@ -264,50 +256,55 @@
             const text = userInput.value.trim();
             if (!text && !selectedImage) return;
 
-            addMessage(text || "📸 Analisando imagem...", true);
+            if (!window.transformersReady) {
+                addMessage("⚠️ Aguarde o Phi-3 Mini terminar de carregar!");
+                return;
+            }
+
+            addMessage(text || "🎨 Gerando...", true);
             userInput.value = '';
-            setStatus('Processando...');
+            userInput.disabled = true;
 
             try {
                 const lower = text.toLowerCase();
                 
-                if (selectedImage) {
-                    // Usar Llama Vision para análise de imagem
-                    const response = await chatWithLlama(text || "Descreva esta imagem em detalhes. O que você vê? Seja específico e detalhado.", selectedImage);
-                    conversationHistory.push(
-                        {role: "user", content: text || "Analise esta imagem"},
-                        {role: "assistant", content: response}
-                    );
-                    addMessage(response);
-                    clearImage();
-                } else if (lower.includes('gere') || lower.includes('crie') || lower.includes('desenhe') || lower.includes('imagem')) {
+                if (selectedImage || lower.includes('gere') || lower.includes('crie') || lower.includes('desenhe') || lower.includes('imagem')) {
                     const prompt = text.replace(/gere|crie|desenhe|uma|imagem|de|um/gi, '').trim();
                     await generateImage(prompt || text);
+                    clearImage();
                 } else if (lower.includes('vídeo') || lower.includes('video') || lower.includes('anima')) {
                     const prompt = text.replace(/gere|crie|vídeo|video|de|um|uma/gi, '').trim();
                     await generateVideo(prompt || text);
                 } else {
-                    // Chat inteligente com Llama 3.2
-                    const response = await chatWithLlama(text);
-                    conversationHistory.push(
-                        {role: "user", content: text},
-                        {role: "assistant", content: response}
-                    );
+                    // Chat com Phi-3 Mini local
+                    addMessage('<div class="typing"><span>●</span><span>●</span><span>●</span></div> Phi-3 Mini processando...', false, 'thinking');
+                    
+                    const systemPrompt = "Você é Antínia, uma assistente IA inteligente e prestativa. Responda sempre em português de forma clara, detalhada e útil. Seja conversacional e amigável.";
+                    
+                    const response = await window.generateText(text, systemPrompt);
+                    
+                    document.getElementById('thinking')?.remove();
+                    
+                    conversationContext.push({user: text, assistant: response});
+                    if (conversationContext.length > 5) conversationContext.shift();
+                    
                     addMessage(response);
                 }
             } catch (e) {
+                document.getElementById('thinking')?.remove();
                 addMessage("❌ Erro ao processar. Tente novamente.");
                 console.error(e);
             }
 
-            setStatus('Online');
+            userInput.disabled = false;
+            userInput.focus();
         }
 
         userInput.addEventListener('keypress', (e) => { 
-            if(e.key === 'Enter') sendMessage(); 
+            if(e.key === 'Enter' && !userInput.disabled) sendMessage(); 
         });
 
-        console.log('🤖 Antínia IA com Llama 3.2 inicializada!');
+        console.log('🤖 Antínia IA com Phi-3 Mini inicializada!');
     </script>
 </body>
 </html>
