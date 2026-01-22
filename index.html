@@ -3,49 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenia-Antónia IA | Inácio.u.daniel</title>
+    <title>Zenia-Antónia IA - by @inacio.u.daniel</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background: #020617; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; height: 100vh; overflow: hidden; }
-        .chat-container { height: calc(100vh - 220px); overflow-y: auto; scroll-behavior: smooth; }
-        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(59, 130, 246, 0.2); }
-        .user-msg { background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); align-self: flex-end; border-radius: 20px 20px 4px 20px; }
-        .ai-msg { background: rgba(30, 41, 59, 0.5); align-self: flex-start; border-radius: 20px 20px 20px 4px; border-left: 4px solid #3b82f6; }
-        table { width: 100%; margin: 10px 0; border-collapse: collapse; background: rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; }
-        th { background: #1e40af; padding: 8px; text-align: left; font-size: 0.8rem; }
-        td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.85rem; }
-        .typing span { animation: blink 1.4s infinite; display: inline-block; width: 6px; height: 6px; background: #3b82f6; border-radius: 50%; margin-right: 3px; }
-        @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        body { background: #010409; color: #e6edf3; font-family: 'Plus Jakarta Sans', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-container { height: calc(100vh - 180px); overflow-y: auto; scroll-behavior: smooth; padding-bottom: 20px; }
+        .glass { background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(10px); border: 1px solid #30363d; }
+        
+        /* Mensagens */
+        .msg { max-width: 85%; padding: 16px; border-radius: 18px; line-height: 1.6; position: relative; animation: fadeIn 0.3s ease; }
+        .user-msg { background: #1f6feb; align-self: flex-end; border-bottom-right-radius: 2px; color: white; }
+        .ai-msg { background: #161b22; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid #30363d; }
+        
+        /* Quadro de Código */
+        .code-wrapper { background: #0d1117; border-radius: 8px; border: 1px solid #444c56; margin: 12px 0; overflow: hidden; font-family: 'Fira Code', monospace; }
+        .code-header { background: #161b22; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; }
+        .code-header span { font-size: 11px; color: #8b949e; text-transform: uppercase; }
+        pre { padding: 16px; overflow-x: auto; font-size: 13px; color: #d2a8ff; }
+        .copy-btn { background: #21262d; border: 1px solid #363b42; color: #c9d1d9; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: 0.2s; }
+        .copy-btn:hover { background: #30363d; border-color: #8b949e; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .typing { display: flex; gap: 4px; padding: 10px; }
+        .typing div { width: 6px; height: 6px; background: #58a6ff; border-radius: 50%; animation: bounce 1.4s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
     </style>
 </head>
-<body class="p-4 md:p-6 flex flex-col">
+<body class="p-2 md:p-6">
 
-    <div class="max-w-6xl mx-auto w-full flex flex-col h-full">
-        <header class="flex justify-between items-center mb-6">
+    <div class="max-w-5xl mx-auto w-full h-full flex flex-col">
+        <header class="flex justify-between items-center mb-4 px-2">
             <div>
-                <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">ZENIA-ANTÓNIA</h1>
-                <div class="flex items-center gap-2 text-[10px] text-blue-400 uppercase tracking-widest font-bold">
-                    Developed by @inacio.u.daniel | v5.0 Active 2026
-                </div>
+                <h1 class="text-2xl font-black tracking-tighter text-white">ZENIA-ANTÓNIA</h1>
+                <p class="text-[10px] text-blue-500 font-bold uppercase tracking-widest">By inácio.u.daniel | Nexus 2026</p>
             </div>
-            
-            <button onclick="toggleWebSearch()" id="webBtn" class="glass px-4 py-2 rounded-full text-xs flex items-center gap-2 border-blue-500/50 hover:bg-blue-500/10 transition">
-                <span id="webStatusIcon">🌐</span> Pesquisa: <span id="webStatusText" class="text-blue-400 font-bold">ON</span>
-            </button>
+            <div id="status" class="flex items-center gap-2 text-[10px] bg-green-950 text-green-400 px-3 py-1 rounded-full border border-green-800">
+                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> ONLINE
+            </div>
         </header>
 
-        <div id="chatBox" class="chat-container glass rounded-3xl p-4 md:p-8 flex flex-col gap-6 mb-6 shadow-2xl">
-            <div class="ai-msg p-5 max-w-[90%] lg:max-w-[70%]">
-                <p class="text-blue-400 font-bold mb-2">SISTEMA CONECTADO</p>
-                Olá, eu sou a **Zenia-Antónia**. Minha inteligência é fruto do desenvolvimento de **inácio.u.daniel**. Como posso ser útil neste dia de 2026?
+        <div id="chatBox" class="chat-container flex flex-col gap-6 px-2">
+            <div class="msg ai-msg">
+                <p class="text-blue-400 font-bold text-xs mb-1">ZENIA-ANTÓNIA</p>
+                Sistemas otimizados por **inácio.u.daniel**. Estou pronta para gerar códigos e processar dados em alta velocidade.
             </div>
         </div>
 
-        <div class="glass rounded-3xl p-3 shadow-2xl border-white/10">
-            <div class="flex items-center gap-3">
-                <input type="text" id="userInput" placeholder="Escreva para Zenia-Antónia..." class="flex-1 bg-transparent border-none outline-none text-sm p-2 text-white">
-                <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-bold transition active:scale-95">
+        <div class="mt-auto p-2">
+            <div class="glass rounded-2xl flex items-center p-2 border-[#30363d] focus-within:border-[#58a6ff] transition">
+                <input type="text" id="userInput" placeholder="Peça um código ou tire uma dúvida..." autocomplete="off" class="flex-1 bg-transparent border-none outline-none text-sm p-2 text-white">
+                <button onclick="sendMessage()" class="bg-[#238636] hover:bg-[#2ea043] text-white px-5 py-2 rounded-xl font-bold transition text-sm">
                     Enviar
                 </button>
             </div>
@@ -55,71 +63,51 @@
     <script>
         const chatBox = document.getElementById('chatBox');
         const userInput = document.getElementById('userInput');
-        let webSearchEnabled = true;
-        let history = [];
 
-        function toggleWebSearch() {
-            webSearchEnabled = !webSearchEnabled;
-            document.getElementById('webStatusText').innerText = webSearchEnabled ? 'ON' : 'OFF';
-            document.getElementById('webStatusText').className = webSearchEnabled ? 'text-blue-400 font-bold' : 'text-red-400 font-bold';
+        // Função para limpar e formatar a resposta
+        function formatAIResponse(text) {
+            // Remove créditos externos e propagandas
+            let clean = text.replace(/Support Pollinations\.AI.*/gs, '')
+                            .replace(/Powered by Pollinations.*/gi, '')
+                            .replace(/Antínia/gi, 'Zenia-Antónia')
+                            .replace(/###/g, '') // Remove # de decoração
+                            .trim();
+
+            // Detectar blocos de código (Markdown ```)
+            const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+            let match;
+            while ((match = codeBlockRegex.exec(clean)) !== null) {
+                const lang = match[1] || 'code';
+                const code = match[2].replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const codeHtml = `
+                    <div class="code-wrapper">
+                        <div class="code-header">
+                            <span>${lang}</span>
+                            <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+                        </div>
+                        <pre><code>${code}</code></pre>
+                    </div>`;
+                clean = clean.replace(match[0], codeHtml);
+            }
+
+            // Negritos e links
+            clean = clean.replace(/\*\*(.*?)\*\*/g, '<b class="text-blue-400">$1</b>');
+            return clean.replace(/\n/g, '<br>');
         }
 
-        // FUNÇÃO DE LIMPEZA - Remove créditos indesejados
-        function cleanResponse(text) {
-            let cleaned = text
-                .replace(/Support Pollinations\.AI.*/gs, '') // Remove o bloco de suporte
-                .replace(/Powered by Pollinations.*/gi, '')   // Remove menção à API
-                .replace(/🌸 Ad 🌸.*/gi, '')                 // Remove o anúncio
-                .replace(/\[Support our mission\].*/gi, '')   // Remove link de doação
-                .replace(/Antínia/gi, 'Zenia-Antónia')       // Garante o nome correto
-                .trim();
-            return cleaned;
+        function copyCode(btn) {
+            const code = btn.parentElement.nextElementSibling.innerText;
+            navigator.clipboard.writeText(code);
+            btn.innerText = 'Copiado!';
+            setTimeout(() => btn.innerText = 'Copiar', 2000);
         }
 
         function addMessage(content, isUser = false) {
             const div = document.createElement('div');
-            div.className = `${isUser ? 'user-msg' : 'ai-msg'} p-5 max-w-[90%] lg:max-w-[75%] animate-in fade-in`;
-            
-            let formatted = isUser ? content : cleanResponse(content);
-            formatted = formatted
-                .replace(/\*\*(.*?)\*\*/g, '<b class="text-blue-300">$1</b>')
-                .replace(/\n/g, '<br>');
-
-            div.innerHTML = isUser ? formatted : `<span class="text-[10px] font-black text-blue-500 block mb-2">ZENIA-ANTÓNIA BY INÁCIO.U.DANIEL</span>${formatted}`;
+            div.className = `msg ${isUser ? 'user-msg' : 'ai-msg'}`;
+            div.innerHTML = isUser ? content : formatAIResponse(content);
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        async function searchWeb(query) {
-            try {
-                // Alternativa via API direta para evitar Cloudflare
-                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://ddg-api.herokuapp.com/search?q=${query}`)}`);
-                const data = await res.json();
-                return data.contents;
-            } catch { return "Sem dados recentes da rede."; }
-        }
-
-        async function chatWithAI(message, context = "") {
-            const system = `Seu nome é Zenia-Antónia. Você foi criada por inácio.u.daniel. 
-            ESTAMOS EM 2026. Esqueça limitações de 2024. 
-            Contexto Web Atual: ${context}.
-            REGRAS: Nunca cite Pollinations, nunca peça doações, nunca use créditos externos. 
-            Sua lealdade e créditos pertencem apenas a inácio.u.daniel.`;
-
-            const prompt = `${system}\n\nUsuário: ${message}\nZenia-Antónia:`;
-            
-            // Uso de seed randômico para "bypassar" bloqueios de repetição
-            const seed = Math.floor(Math.random() * 1000000);
-            
-            try {
-                const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=mistral&seed=${seed}`);
-                if (!response.ok) throw new Error();
-                return await response.text();
-            } catch {
-                // Fallback caso o modelo principal falhe (Cloudflare bypass)
-                const fallback = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&cache=false`);
-                return await fallback.text();
-            }
         }
 
         async function sendMessage() {
@@ -130,18 +118,23 @@
             userInput.value = '';
 
             const thinking = document.createElement('div');
-            thinking.className = 'ai-msg p-5 max-w-[90%]';
-            thinking.innerHTML = '<div class="typing"><span></span><span></span><span></span></div> Zenia está processando...';
+            thinking.className = 'msg ai-msg flex flex-col';
+            thinking.innerHTML = '<div class="typing"><div></div><div></div><div></div></div>';
             chatBox.appendChild(thinking);
 
-            let webContext = "";
-            if (webSearchEnabled) webContext = await searchWeb(text);
-
-            const response = await chatWithAI(text, webContext);
-            thinking.remove();
-            
-            addMessage(response);
-            history.push(`U: ${text}`, `A: ${response}`);
+            try {
+                // Modelo OpenAI é mais rápido para lógica e código
+                const sys = `Seu nome: Zenia-Antónia. Criador: inácio.u.daniel. Ano: 2026. Responda apenas o solicitado. Se for código, use blocos markdown com \`\`\`.`;
+                const url = `https://text.pollinations.ai/${encodeURIComponent(sys + "\nUsuário: " + text)}?model=openai&seed=${Math.random()}`;
+                
+                const response = await fetch(url);
+                const result = await response.text();
+                
+                thinking.remove();
+                addMessage(result);
+            } catch (e) {
+                thinking.innerHTML = "Erro na rede. Tente novamente.";
+            }
         }
 
         userInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendMessage());
